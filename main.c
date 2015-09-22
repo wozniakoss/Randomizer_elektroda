@@ -12,6 +12,32 @@
 #include <stdlib.h>
 #include <avr/interrupt.h>
 
+//---------******************************-----------
+//makrodefinicje portów
+#define OUT1_PIN (1<<PD3)
+#define OUT2_PIN (1<<PD4)
+#define OUT3_PIN (1<<PD5)
+
+#define OUT1_ON PORTD |= OUT1_PIN
+#define OUT2_ON PORTD |= OUT2_PIN
+#define OUT3_ON PORTD |= OUT3_PIN
+
+#define OUT1_OFF PORTD &=~ OUT1_PIN
+#define OUT2_OFF PORTD &=~ OUT2_PIN
+#define OUT3_OFF PORTD &=~ OUT3_PIN
+
+#define OUT1_TOG PORTD ^= OUT1_PIN
+#define OUT2_TOG PORTD ^= OUT2_PIN
+#define OUT3_TOG PORTD ^= OUT3_PIN
+
+#define KEY1_PIN (1<<PD0)
+#define KEY2_PIN (1<<PD1)
+#define KEY3_PIN (1<<PD2)
+//---------************KONIEC MAKR******************-----------
+
+
+//---------******************************-----------
+//STA£E ZNAKOWE DLA WYŒWIETLACZA 7 SEG
 const uint8_t znak[] PROGMEM  =
 {
 		0b11000000, //0
@@ -33,6 +59,7 @@ const uint8_t znak[] PROGMEM  =
 		0b01111111 //.
 };
 
+// TABLICA ZIAREN DLA FUNKCJI SRAND:
 const uint8_t ziarno[] PROGMEM = {
 		135, 184, 111, 211, 130, 91, 132, 159, 48, 79, 89, 190, 55, 212, 77, 9,
 		117, 198, 29, 75, 125, 72, 155, 216, 54, 88, 61, 148, 199, 197, 152, 207,
@@ -48,6 +75,9 @@ const uint8_t ziarno[] PROGMEM = {
 		163, 191, 87, 168, 175, 18, 15, 134, 251, 202, 0 ,176, 214, 194, 170, 38
 
 };
+//-----------------------*********** KONIEC STA£YCH*********-----------------
+
+
 
 uint8_t i = 0;
 int main (void){
