@@ -77,41 +77,52 @@ const uint8_t ziarno[] PROGMEM = {
 };
 //-----------------------*********** KONIEC STA£YCH*********-----------------
 
-uint8_t czas_krop EEMEM;
-uint8_t czas_kres EEMEM;
-uint8_t czas_pauz EEMEM;
-
+//-----------------------*********** zmienne globalne*********-----------------
+uint8_t flag=0;
 //-----------------------*********** deklaracje funkcji*********-------------
 
 uint8_t key_down ( uint8_t key);
 void serwis (void);
+void regulacja(uint8_t var_tim);
+
 //---------------------------------------------------------------------------
 uint8_t i = 0;
+//***************************************************************************
+// ----------*********** MAIN *************----------------------------------
+//***************************************************************************
 int main (void){
-DDRB = 0xff; // wyjscia wyswietlacza
-DDRD |= (1<<PD3)|(1<<PD4)|(1<<PD5); //3 wyjscia mocy
 
-DDRD &=~ ((1<<PD0)|(1<<PD1)|(1<<PD2)); //klawisze
-PORTD |= (1<<PD0)|(1<<PD1)|(1<<PD2); //podci¹gam wejscia przycikow
+	DDRB = 0xff; // wyjscia wyswietlacza
+	PORTB = 0xff; //zgaszam wysw.
+	DDRD |= (1<<PD3)|(1<<PD4)|(1<<PD5); //3 wyjscia mocy
+
+	DDRD &=~ ((1<<PD0)|(1<<PD1)|(1<<PD2)); //klawisze
+	PORTD |= (1<<PD0)|(1<<PD1)|(1<<PD2); //podci¹gam wejscia przycikow
+
+	if ( key_down ( KEY_SET)) serwis();
+
+	TCCR0B |= (1<<CS02) | (1<<CS00); // prescale 1024
+	TIMSK |= (1<<TOIE0); //zezwolenie na przerwanie od przepe³nienia
+	TCNT0 = 157 ; // wychodzi nam przerwanie co
+	sei(); //globalny uk³ad przerwañ
+
+	uint8_t licz = 0;
 
 
 
-
-if ( key_down ( KEY_SET)) serwis();
-
-PORTB = 0xff;
 	while (1){
-//		if (key_down ( KEY_PLUS )) PORTB = ~0b00000001;
-//		if (key_down ( KEY_SET )) PORTB = ~0b01000000;
-//		if (key_down ( KEY_MINUS )) PORTB = ~0b00001000;
-_delay_ms(1000);
-PORTB = eeprom_read_byte(znak);
-_delay_ms(1000);
-PORTB = eeprom_read_byte(0x02);
-_delay_ms(1000);
-PORTB = eeprom_read_byte(0x03);
+		if ( flag ){
+			++licz;
+			flag =0;
+		}
+
+		if (licz == 10) PORTB=rand();
 	};
 }
+
+//***************************************************************************
+// ----------**********KONIEC MAIN************-------------------------------
+//***************************************************************************
 
 uint8_t key_down ( uint8_t key){
 
@@ -126,6 +137,7 @@ uint8_t key_down ( uint8_t key){
 	return 0;
 }
 
+
 void serwis (void){
 //wchodzimy w tryb serwisowy
 //	tutaj zapisujemy dane do eepromu
@@ -133,78 +145,50 @@ void serwis (void){
 	uint8_t t_kropki = eeprom_read_byte(0x01);
 	uint8_t t_kreski = eeprom_read_byte(0x02);
 	uint8_t t_pauzy  = eeprom_read_byte(0x03);
+	PORTB=0x00;
 
-	PORTB = 0x00;
-	_delay_ms(300);
-	PORTB = 0xff;
-	_delay_ms(300);
-	PORTB = 0x00;
-	_delay_ms(300);
-	PORTB = 0xff;
-	_delay_ms(300);
-	PORTB = 0x00;
-	_delay_ms(300);
-	PORTB = 0xff;
-	_delay_ms(300);
-	PORTB = 0x00;
-	_delay_ms(300);
-	PORTB = 0xff;
-	while ( n<3 ){
-
-		if ( key_down ( KEY_SET)) ++n;
-		if (n == 0){
-			//ustaw pauzê // regulacja od 0.1 do 0.5
-			if(key_down(KEY_PLUS)) {
-				++t_pauzy;
-				if (t_pauzy == 6) t_pauzy = 5;
-			}
-
-			if(key_down(KEY_MINUS)){
-				--t_pauzy;
-				if (t_pauzy == 0) t_pauzy = 1;
-			}
-
-			PORTB = pgm_read_byte(&znak[t_pauzy]);
-		}
-
-		if (n == 1){
-			//ustaw kropkê  // regulacja od 0.1 do 0.5
-			if(key_down(KEY_PLUS)) {
-				++t_kropki;
-				if (t_kropki == 6) t_kropki = 5;
-			}
-
-			if(key_down(KEY_MINUS)){
-				--t_kropki;
-				if (t_kropki == 0) t_kropki = 1;
-			}
-
-			PORTB = pgm_read_byte(&znak[t_kropki]);
-		}
-		if (n == 2){
-			//ustaw kreskê // regulacja od 0.3 do 1.5
-			if(key_down(KEY_PLUS)) {
-				++t_kreski;
-				if (t_kreski == 16) t_kreski = 15;
-			}
-
-			if(key_down(KEY_MINUS)){
-				--t_kreski;
-				if (t_kreski == 2) t_kreski = 3;
-			}
-
-			PORTB = pgm_read_byte(&znak[t_kreski]);
-		}
-	//wpisz z powrotem dane do eepromu
-
+	for ( uint8_t i = 3 ; !i ; --i){
+		PORTB = ~PORTB;
+		_delay_ms(300);
 	}
-		 eeprom_write_byte(0x01,t_kropki);
-		 eeprom_write_byte(0x02,t_kreski);
-		 eeprom_write_byte(0x03,t_pauzy);
+//tu pole do popisu :
+	// mo¿na przerobiæ kod na tablice i wykorzystaæ n do indeksowania,
+	// argumentem funkcji by³oby tab[n] !
+	while ( n<3 ){
+		if ( key_down ( KEY_SET)) ++n;
+
+		if (n == 0)regulacja(t_kropki);
+			//ustaw pauzê // regulacja od 0.1 do 0.5
+
+		if (n == 1)regulacja(t_kreski);
+			//ustaw kropkê  // regulacja od 0.1 do 0.5
+
+		if (n == 2)regulacja(t_pauzy);
+			//ustaw kreskê // regulacja od 0.3 do 1.5
+	}
+
+	//wpisz z powrotem dane do eepromu
+	eeprom_write_byte(0x01,t_kropki);
+	eeprom_write_byte(0x02,t_kreski);
+	eeprom_write_byte(0x03,t_pauzy);
 }
-//ISR(TIMER0_COMP_vect)
-//ISR(TIMER0_OVF_vect)
-//{
 
-//}
+void regulacja(uint8_t var_tim){
+	if(key_down(KEY_PLUS)) {
+		++var_tim;
+		if (var_tim == 16) var_tim = 15;
+	}
 
+	if(key_down(KEY_MINUS)){
+		--var_tim;
+		if (var_tim == 2) var_tim = 3;
+	}
+
+	PORTB = pgm_read_byte(&znak[var_tim]);
+}
+
+
+ISR(TIMER0_OVF_vect){
+TCNT0 = 157;
+		flag = 1;
+}
