@@ -77,10 +77,11 @@ const uint8_t ziarno[] PROGMEM = {
 };
 //-----------------------*********** KONIEC STA£YCH*********-----------------
 typedef struct {
-uint8_t random_number;
-uint8_t licznik_pauzy;
-uint8_t licznik_kropki;
-uint8_t licznik_kreski;
+	uint8_t losowa;
+	uint8_t licznik_pauzy;
+	uint8_t licznik_kropki;
+	uint8_t licznik_kreski;
+	uint8_t czy_pauza;
 
 }out;
 //-----------------------*********** zmienne globalne*********-----------------
@@ -96,7 +97,7 @@ void regulacja(uint8_t *var_tim,const uint8_t min,const uint8_t max);
 //---------------------------------------------------------------------------
 //***************************************************************************
 
-uint8_t i = 0;
+
 
 //***************************************************************************
 // ----------*********** MAIN *************----------------------------------
@@ -122,50 +123,56 @@ int main (void){
 	czas[0]= eeprom_read_byte(0x01); // czas kropki
 	czas[1]= eeprom_read_byte(0x02); // czas kreski
 	czas[2]= eeprom_read_byte(0x03); // czas pauzy
-	uint8_t czy_pauza=1;
-//	uint8_t licz = 0;
-	uint8_t licznik_pauzy=0;
-	uint8_t licznik_kropki=0;
-	uint8_t licznik_kreski=0;
-	uint8_t losowa=rand(); // do tel liczby bêdê losowa³
 
 	out wyjscie[3];
-
+	uint8_t i = 0;
 	while (1){
 		if ( flag ){
-			flag=0;
-			if ( czy_pauza ){
-				PORTB=0xff;
-				++licznik_pauzy;
-				if (licznik_pauzy == czas[2]){
-					czy_pauza = 0;
-					losowa = rand();
-					licznik_pauzy = 0;//czas na kropkê lub kreskê// byæ mo¿e do poprwaki
+
+			if ( wyjscie[i].czy_pauza){
+				if( i==0)PORTB |=(1<<0);
+				if( i==1)PORTB |=(1<<3);
+				if( i==2)PORTB |=(1<<6);
+
+				++wyjscie[i].licznik_pauzy;
+				if (wyjscie[i].licznik_pauzy == czas[2]){
+					wyjscie[i].czy_pauza = 0;
+					wyjscie[i].losowa = rand();
+					wyjscie[i].licznik_pauzy = 0;//czas na kropkê lub kreskê// byæ mo¿e do poprwaki
 				}
 			}
 			else{
-				if ( losowa & 0b00000001 ){ // sprawdzam czy liczmy czas kreski czy kropki
+				if( i==0)PORTB &=~(1<<0);
+				if( i==1)PORTB &=~(1<<3);
+				if( i==2)PORTB &=~(1<<6);
+
+				if ( wyjscie[i].losowa & 0b00000001 ){ // sprawdzam czy liczmy czas kreski czy kropki
 					//tu liczmy czas kreski
 					//za³¹cz wyj 1
-					PORTB=0x00;
-					++licznik_kreski;
-					if ( licznik_kreski >= czas[1] ) {
-						czy_pauza = 1;
-						licznik_kreski =0;	//dobijam do koñca - czas na pauzê
+
+
+					++wyjscie[i].licznik_kreski;
+					if ( wyjscie[i].licznik_kreski >= czas[1] ) {
+						wyjscie[i].czy_pauza = 1;
+						wyjscie[i].licznik_kreski =0;	//dobijam do koñca - czas na pauzê
 					}
 				}
 				else{
-					PORTB=0x00;
-					++licznik_kropki;
+					++wyjscie[i].licznik_kropki;
 					//tu liczymy czas kropki
-					if ( licznik_kropki >= czas[0] ){
-						czy_pauza = 1; //dobijam do koñca - czas na pauzê
-						licznik_kropki =0; //zeruje czas tak jak wszêdzie po dobiciu do max'a
+					if ( wyjscie[i].licznik_kropki >= czas[0] ){
+						wyjscie[i].czy_pauza = 1; //dobijam do koñca - czas na pauzê
+						wyjscie[i].licznik_kropki =0; //zeruje czas tak jak wszêdzie po dobiciu do max'a
 					}
 				}
 			}
+			++i;
+			if ( i == 3) {
+				i = 0;
+				flag = 0 ;
+			}
+		}
 	}
-}
 
 }
 //***************************************************************************
