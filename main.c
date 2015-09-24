@@ -76,7 +76,13 @@ const uint8_t ziarno[] PROGMEM = {
 
 };
 //-----------------------*********** KONIEC STA£YCH*********-----------------
+typedef struct {
+uint8_t random_number;
+uint8_t licznik_pauzy;
+uint8_t licznik_kropki;
+uint8_t licznik_kreski;
 
+}out;
 //-----------------------*********** zmienne globalne*********-----------------
 volatile uint8_t flag=0;
 
@@ -90,9 +96,8 @@ void regulacja(uint8_t *var_tim,const uint8_t min,const uint8_t max);
 //---------------------------------------------------------------------------
 //***************************************************************************
 
-
-
 uint8_t i = 0;
+
 //***************************************************************************
 // ----------*********** MAIN *************----------------------------------
 //***************************************************************************
@@ -117,23 +122,52 @@ int main (void){
 	czas[0]= eeprom_read_byte(0x01); // czas kropki
 	czas[1]= eeprom_read_byte(0x02); // czas kreski
 	czas[2]= eeprom_read_byte(0x03); // czas pauzy
+	uint8_t czy_pauza=1;
+//	uint8_t licz = 0;
+	uint8_t licznik_pauzy=0;
+	uint8_t licznik_kropki=0;
+	uint8_t licznik_kreski=0;
+	uint8_t losowa=rand(); // do tel liczby bêdê losowa³
 
+	out wyjscie[3];
 
-	uint8_t licz = 0;
-
-	uint8_t losowa; // do tel liczby bêdê losowa³
-	eeprom_write_byte(0x01,1);
-	eeprom_write_byte(0x02,2);
-	eeprom_write_byte(0x03,3);
 	while (1){
 		if ( flag ){
-			losowa = rand();
-
-		}
-
-	};
+			flag=0;
+			if ( czy_pauza ){
+				PORTB=0xff;
+				++licznik_pauzy;
+				if (licznik_pauzy == czas[2]){
+					czy_pauza = 0;
+					losowa = rand();
+					licznik_pauzy = 0;//czas na kropkê lub kreskê// byæ mo¿e do poprwaki
+				}
+			}
+			else{
+				if ( losowa & 0b00000001 ){ // sprawdzam czy liczmy czas kreski czy kropki
+					//tu liczmy czas kreski
+					//za³¹cz wyj 1
+					PORTB=0x00;
+					++licznik_kreski;
+					if ( licznik_kreski >= czas[1] ) {
+						czy_pauza = 1;
+						licznik_kreski =0;	//dobijam do koñca - czas na pauzê
+					}
+				}
+				else{
+					PORTB=0x00;
+					++licznik_kropki;
+					//tu liczymy czas kropki
+					if ( licznik_kropki >= czas[0] ){
+						czy_pauza = 1; //dobijam do koñca - czas na pauzê
+						licznik_kropki =0; //zeruje czas tak jak wszêdzie po dobiciu do max'a
+					}
+				}
+			}
+	}
 }
 
+}
 //***************************************************************************
 // ----------**********KONIEC MAIN************-------------------------------
 //***************************************************************************
@@ -174,10 +208,10 @@ void serwis (void){
 		if (n == 0)regulacja(&t_kropki,1,5);
 			//ustaw pauzê // regulacja od 0.1 do 0.5
 
-		if (n == 1)regulacja(&t_kreski,1,5);
+		if (n == 1)regulacja(&t_kreski,3,15);
 			//ustaw kropkê  // regulacja od 0.1 do 0.5
 
-		if (n == 2)regulacja(&t_pauzy,3,15);
+		if (n == 2)regulacja(&t_pauzy,1,5);
 			//ustaw kreskê // regulacja od 0.3 do 1.5
 	}
 
