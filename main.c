@@ -78,14 +78,20 @@ const uint8_t ziarno[] PROGMEM = {
 //-----------------------*********** KONIEC STA£YCH*********-----------------
 
 //-----------------------*********** zmienne globalne*********-----------------
-uint8_t flag=0;
-//-----------------------*********** deklaracje funkcji*********-------------
+volatile uint8_t flag=0;
 
+//***************************************************************************
+//-----------------------*********** deklaracje funkcji*********-------------
+//***************************************************************************
 uint8_t key_down ( uint8_t key);
 void serwis (void);
-void regulacja(uint8_t var_tim);
-
+void regulacja(uint8_t *var_tim,const uint8_t min,const uint8_t max);
+//***************************************************************************
 //---------------------------------------------------------------------------
+//***************************************************************************
+
+
+
 uint8_t i = 0;
 //***************************************************************************
 // ----------*********** MAIN *************----------------------------------
@@ -106,17 +112,25 @@ int main (void){
 	TCNT0 = 157 ; // wychodzi nam przerwanie co
 	sei(); //globalny uk³ad przerwañ
 
+	// zmienne przechowuj¹ce opóŸnienia
+	uint8_t czas[3];
+	czas[0]= eeprom_read_byte(0x01); // czas kropki
+	czas[1]= eeprom_read_byte(0x02); // czas kreski
+	czas[2]= eeprom_read_byte(0x03); // czas pauzy
+
+
 	uint8_t licz = 0;
 
-
-
+	uint8_t losowa; // do tel liczby bêdê losowa³
+	eeprom_write_byte(0x01,1);
+	eeprom_write_byte(0x02,2);
+	eeprom_write_byte(0x03,3);
 	while (1){
 		if ( flag ){
-			++licz;
-			flag =0;
+			losowa = rand();
+
 		}
 
-		if (licz == 10) PORTB=rand();
 	};
 }
 
@@ -147,7 +161,7 @@ void serwis (void){
 	uint8_t t_pauzy  = eeprom_read_byte(0x03);
 	PORTB=0x00;
 
-	for ( uint8_t i = 3 ; !i ; --i){
+	for ( uint8_t i = 6 ; i ; --i){
 		PORTB = ~PORTB;
 		_delay_ms(300);
 	}
@@ -157,13 +171,13 @@ void serwis (void){
 	while ( n<3 ){
 		if ( key_down ( KEY_SET)) ++n;
 
-		if (n == 0)regulacja(t_kropki);
+		if (n == 0)regulacja(&t_kropki,1,5);
 			//ustaw pauzê // regulacja od 0.1 do 0.5
 
-		if (n == 1)regulacja(t_kreski);
+		if (n == 1)regulacja(&t_kreski,1,5);
 			//ustaw kropkê  // regulacja od 0.1 do 0.5
 
-		if (n == 2)regulacja(t_pauzy);
+		if (n == 2)regulacja(&t_pauzy,3,15);
 			//ustaw kreskê // regulacja od 0.3 do 1.5
 	}
 
@@ -172,23 +186,23 @@ void serwis (void){
 	eeprom_write_byte(0x02,t_kreski);
 	eeprom_write_byte(0x03,t_pauzy);
 }
-
-void regulacja(uint8_t var_tim){
+// dodac mozliwosc zakresu reg i wskazniki, bo teraz to nic nie dzia³a xD
+void regulacja(uint8_t *var_tim,const uint8_t min,const uint8_t max){
 	if(key_down(KEY_PLUS)) {
-		++var_tim;
-		if (var_tim == 16) var_tim = 15;
+		++*var_tim;
+		if (*var_tim == (max+1)) *var_tim = max;
 	}
 
 	if(key_down(KEY_MINUS)){
-		--var_tim;
-		if (var_tim == 2) var_tim = 3;
+		--*var_tim;
+		if (*var_tim == (min-1)) *var_tim = min;
 	}
 
-	PORTB = pgm_read_byte(&znak[var_tim]);
+	PORTB = pgm_read_byte(&znak[*var_tim]);
 }
 
-
+//timer tez do poprawki
 ISR(TIMER0_OVF_vect){
-TCNT0 = 157;
-		flag = 1;
+	TCNT0 = 157;
+	flag = 1;
 }
