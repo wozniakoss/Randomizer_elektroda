@@ -82,7 +82,6 @@ typedef struct {
 	uint8_t licznik_kropki;
 	uint8_t licznik_kreski;
 	uint8_t czy_pauza;
-
 }out;
 //-----------------------*********** zmienne globalne*********-----------------
 volatile uint8_t flag=0;
@@ -93,11 +92,12 @@ volatile uint8_t flag=0;
 uint8_t key_down ( uint8_t key);
 void serwis (void);
 void regulacja(uint8_t *var_tim,const uint8_t min,const uint8_t max);
+void zamigaj(void);
 //***************************************************************************
 //---------------------------------------------------------------------------
 //***************************************************************************
 
-
+out wyjscie[3];
 
 //***************************************************************************
 // ----------*********** MAIN *************----------------------------------
@@ -124,15 +124,21 @@ int main (void){
 	czas[1]= eeprom_read_byte(0x02); // czas kreski
 	czas[2]= eeprom_read_byte(0x03); // czas pauzy
 
-	out wyjscie[3];
+	uint8_t n=0;
+	srand(pgm_read_byte(&ziarno[eeprom_read_byte(0x00)]));
+	n=eeprom_read_byte(0x00);
+	++n;
+	if(n==190) n=0;
+	eeprom_write_byte(0x00,n);
+
+
 	uint8_t i = 0;
 	while (1){
 		if ( flag ){
-
 			if ( wyjscie[i].czy_pauza){
-				if( i==0)PORTB |=(1<<0);
-				if( i==1)PORTB |=(1<<3);
-				if( i==2)PORTB |=(1<<6);
+				if( i==0){PORTB |=(1<<0); PORTD &=~(1<<PD3); }
+				if( i==1){PORTB |=(1<<3); PORTD &=~(1<<PD4); }
+				if( i==2){PORTB |=(1<<6); PORTD &=~(1<<PD5); }
 
 				++wyjscie[i].licznik_pauzy;
 				if (wyjscie[i].licznik_pauzy == czas[2]){
@@ -142,15 +148,13 @@ int main (void){
 				}
 			}
 			else{
-				if( i==0)PORTB &=~(1<<0);
-				if( i==1)PORTB &=~(1<<3);
-				if( i==2)PORTB &=~(1<<6);
+				if( i==0){PORTB &=~(1<<0); PORTD |= (1<<PD3); }
+				if( i==1){PORTB &=~(1<<3); PORTD |= (1<<PD4); }
+				if( i==2){PORTB &=~(1<<6); PORTD |= (1<<PD5); }
 
 				if ( wyjscie[i].losowa & 0b00000001 ){ // sprawdzam czy liczmy czas kreski czy kropki
 					//tu liczmy czas kreski
 					//za³¹cz wyj 1
-
-
 					++wyjscie[i].licznik_kreski;
 					if ( wyjscie[i].licznik_kreski >= czas[1] ) {
 						wyjscie[i].czy_pauza = 1;
@@ -210,22 +214,28 @@ void serwis (void){
 	// mo¿na przerobiæ kod na tablice i wykorzystaæ n do indeksowania,
 	// argumentem funkcji by³oby tab[n] !
 	while ( n<3 ){
-		if ( key_down ( KEY_SET)) ++n;
+		if ( key_down ( KEY_SET)){ ++n; zamigaj(); }
 
 		if (n == 0)regulacja(&t_kropki,1,5);
 			//ustaw pauzê // regulacja od 0.1 do 0.5
-
 		if (n == 1)regulacja(&t_kreski,3,15);
 			//ustaw kropkê  // regulacja od 0.1 do 0.5
-
 		if (n == 2)regulacja(&t_pauzy,1,5);
 			//ustaw kreskê // regulacja od 0.3 do 1.5
 	}
-
 	//wpisz z powrotem dane do eepromu
 	eeprom_write_byte(0x01,t_kropki);
 	eeprom_write_byte(0x02,t_kreski);
 	eeprom_write_byte(0x03,t_pauzy);
+	PORTB=0xff;
+}
+
+void zamigaj(void){
+	PORTB=0xff;
+	for(uint8_t i =4;i;--i){
+	PORTB^=(1<<7);
+	_delay_ms(300);
+	}
 }
 // dodac mozliwosc zakresu reg i wskazniki, bo teraz to nic nie dzia³a xD
 void regulacja(uint8_t *var_tim,const uint8_t min,const uint8_t max){
